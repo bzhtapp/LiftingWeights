@@ -1,0 +1,111 @@
+---
+title: "Project"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Working Out
+
+This report discussing a model that predicts how well a person using a motion monitoring devices does a dumb bell lift.  The performance is grouped into one of five categories (A through E) based on how well that person does the
+lift.
+<br><br>
+The report will:
+1. Discuss how I built my model. <br>
+2. How I used cross validation. <br>
+3. What I think the expected out of sample error is.<br>
+4. Why I made the choices I did. <br>
+<br>
+
+My first step was to clean the data. I removed all columns that has blank, NA or Div/0! for 90% of its data.  To further improve performance of model, I removed variables that I knew to not have any correlation with the outcome, e.g. X, name, timestamps, etc.
+
+These two steps reduced the number of predictors from 120 to 53.
+
+Then I used cross validation with 10 folds, or k=10.
+
+I chose to use random forest model since this was a classification problem.
+
+I expect the out of sample error to be less than 0.5% based on the model summary of Accuracy of 0.995
+
+Data was provided by http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har
+
+``` {r, , echo=FALSE }
+library(caret)
+library(dplyr)
+library(data.table)
+library(party)
+
+#Set directory to where csv files are located
+setwd("E:/My Documents/R/C8")
+
+```
+
+
+## Load Data
+``` {r, , echo=TRUE }
+
+set.seed(100)
+training = read.csv("pml-training.csv") %>% data.table
+testing = read.csv("pml-testing.csv") %>% data.table
+
+dim(training)
+
+```
+
+## Clean data
+``` {r, , echo=TRUE }
+
+# Remove columns where more than 90% of values are in that column are blank, NA, or Div/0!
+trainSm <- training[, -c("X", "new_window", "num_window",
+            "user_name", "raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp",
+            "kurtosis_roll_belt", "kurtosis_picth_belt", "kurtosis_yaw_belt", "skewness_roll_belt",
+            "skewness_roll_belt.1", "skewness_yaw_belt", "max_roll_belt", "max_picth_belt",
+            "max_yaw_belt", "amplitude_roll_belt", "amplitude_pitch_belt", "amplitude_yaw_belt",
+            "var_total_accel_belt", "avg_roll_belt", "stddev_roll_belt", "var_roll_belt",
+            "avg_pitch_belt", "stddev_pitch_belt", "var_pitch_belt", "avg_yaw_belt",
+            "stddev_yaw_belt", "var_yaw_belt", "var_accel_arm", "avg_roll_arm",
+            "stddev_roll_arm", "var_roll_arm", "avg_pitch_arm", "stddev_pitch_arm",
+            "var_pitch_arm", "avg_yaw_arm", "stddev_yaw_arm", "var_yaw_arm", "kurtosis_roll_arm",
+            "kurtosis_picth_arm", "kurtosis_yaw_arm", "skewness_roll_arm", "skewness_pitch_arm",
+            "skewness_yaw_arm", "max_roll_arm", "max_picth_arm", "max_yaw_arm",
+            "min_roll_arm", "min_pitch_arm", "min_yaw_arm", "amplitude_roll_arm", "amplitude_pitch_arm",
+            "amplitude_yaw_arm", "kurtosis_roll_dumbbell", "kurtosis_picth_dumbbell", "kurtosis_yaw_dumbbell",
+            "skewness_roll_dumbbell", "skewness_pitch_dumbbell", "skewness_yaw_dumbbell",
+            "max_picth_dumbbell", "max_yaw_dumbbell", "min_roll_dumbbell", "min_pitch_dumbbell",
+            "min_yaw_dumbbell", "amplitude_roll_dumbbell", "amplitude_pitch_dumbbell",
+            "amplitude_yaw_dumbbell", "var_accel_dumbbell", "avg_roll_dumbbell", "stddev_roll_dumbbell",
+            "var_roll_dumbbell", "avg_pitch_dumbbell", "stddev_pitch_dumbbell", "var_pitch_dumbbell", 
+            "avg_yaw_dumbbell", "stddev_yaw_dumbbell", "var_yaw_dumbbell", "kurtosis_roll_forearm",
+            "kurtosis_picth_forearm", "kurtosis_yaw_forearm", "skewness_roll_forearm", 
+            "skewness_pitch_forearm", "skewness_yaw_forearm", "max_roll_forearm", "max_picth_forearm",
+            "max_yaw_forearm", "min_roll_forearm", "min_pitch_forearm", "min_yaw_forearm",
+            "amplitude_roll_forearm", "amplitude_yaw_forearm", "var_accel_forearm", "avg_roll_forearm",
+            "stddev_roll_forearm", "var_roll_forearm", "avg_pitch_forearm", "stddev_pitch_forearm",
+            "var_pitch_forearm", "avg_yaw_forearm", "stddev_yaw_forearm", "var_yaw_forearm",
+            "min_yaw_belt", "min_roll_belt", "min_pitch_belt", "min_yaw_belt", "max_roll_dumbbell",
+            "amplitude_pitch_forearm")]
+
+
+```
+
+
+## Model and predict
+``` {r, , echo=TRUE }
+
+#apply cross validation using k-fold with k = (sample size)/10
+train_control<- trainControl(method="cv", number=10, savePredictions = TRUE)
+
+#model using random forest
+model<- train(classe ~ ., data=trainSm, trControl=train_control, method="rf")
+model
+
+#get error
+predictTrain <- predict(model, training)
+errorTrain <- sum(predictTrain == training$classe)
+
+predict(model, testing)
+
+
+```
