@@ -1,0 +1,137 @@
+---
+title: "Machine Learning"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval = FALSE)
+```
+
+This report discusses building a prediction model that predicts how well a person does a dumbbell lift. 
+The performance is grouped into one of five categories (A through E) based on how well that person does the
+lift.
+<br><br>
+
+Data was provided by http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har
+
+``` {r}
+library(caret)
+library(dplyr)
+library(data.table)
+library(party)
+library(R.utils)
+
+```
+
+## <b>Load the data</b><br>
+
+Load Data into training and testing set
+``` {r}
+
+set.seed(100)
+
+url1 <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+url2 <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+fileName1 = "training"
+fileName2 = "testing"
+
+if(!file.exists(fileName1) || !file.exists(fileName2) ){
+    download.file(url1 , fileName1 , method="auto") 
+    download.file(url2 , fileName2, method="auto") 
+}
+
+training<-read.csv(fileName1)
+testing<-read.csv(fileName2)
+
+```
+
+Inspect dimension of training data
+``` {r}
+dim(training)
+```
+
+The outcome variable, classe, is distrubuted over 5 values with the following distribution:
+
+```{r}
+table(training$classe)/length(training$classe)
+```
+
+
+## <br><b> Select features </b> <br>
+
+Remove near zero values
+```{r}
+nearZero <- nearZeroVar(training, saveMetrics= TRUE)
+
+rownames <- rownames( nearZero [nearZero$nzv==TRUE,])
+
+training<-training[, -which(names(training) %in% rownames)]
+
+```
+
+Delete all columns with whose missing values percentage is more than 50% threshold
+ 
+```{r}
+threshold <- .5 * dim(training)[1]
+
+colnames<-colnames(training)[colSums(is.na(training)) > threshold]
+training<-training[,-which(names(training) %in% colnames)]
+```
+
+
+Remove variables not related to activity:
+new_window, num_window, user_name, raw_timestamp_part_1, raw_timestamp_part_2
+
+``` {r}
+training <- training[, -c(1:6)]
+
+
+```
+
+Remove highly correlated variables
+
+``` {r}
+correlationMatrix <- cor(training[, -dim(training)[2] ])
+
+highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.7)
+
+training <-training[, -highlyCorrelated]
+
+```
+
+
+## <br><b> Train the model </b><br>
+Random Forest with k-fold cross validation model is used since this is a classification problem
+
+Apply cross validation using k-fold with k = 10
+
+``` {r}
+train_control<- trainControl(method="cv", number=10, savePredictions = TRUE)
+```
+
+Model using random forest. 
+
+``` {r}
+
+model<- train(classe ~ ., data=training, trControl=train_control, method="rf")
+
+```
+
+
+We see that the model will have an estimated out of sample error of less than 1%
+
+``` {r}
+model$finalModel
+
+```
+
+
+## <br><b> Prediction </b><br>
+Finally, we apply the model against the actual test set to get the predictions for the 20 testing.
+Validated accuracy from Quiz results had a 100% accuracy.
+
+``` {r}
+predict(model, testing)
+
+```
